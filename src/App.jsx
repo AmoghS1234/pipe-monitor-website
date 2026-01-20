@@ -6,38 +6,64 @@ import Reports from './components/Reports';
 import { usePipeData } from './hooks/usePipeData';
 
 const App = () => {
-  const [view, setView] = useState('dashboard');
-  const [activePipeId, setActivePipeId] = useState(null);
+  // --- 1. PERSISTENCE LOGIC: Read from Storage on Load ---
+  const [view, setView] = useState(() => {
+    return localStorage.getItem('pipe_monitor_view') || 'dashboard';
+  });
+  
+  const [activePipeId, setActivePipeId] = useState(() => {
+    return localStorage.getItem('pipe_monitor_active_id') || null;
+  });
 
-  // Browser Back Button Logic
+  // --- 2. SYNC LOGIC: Save to Storage and History API ---
   useEffect(() => {
-    if (activePipeId) window.history.pushState({ pipe: activePipeId }, '');
-    else window.history.replaceState(null, '');
+    // Save to LocalStorage
+    localStorage.setItem('pipe_monitor_view', view);
+    if (activePipeId) {
+      localStorage.setItem('pipe_monitor_active_id', activePipeId);
+      // Update Browser History for Alt + Arrow support
+      window.history.pushState({ view, pipeId: activePipeId }, '');
+    } else {
+      localStorage.removeItem('pipe_monitor_active_id');
+      window.history.replaceState({ view, pipeId: null }, '');
+    }
+  }, [view, activePipeId]);
 
+  // Handle Browser Back Button (Alt + Arrow)
+  useEffect(() => {
     const handlePopState = (event) => {
-      if (event.state && event.state.pipe) setActivePipeId(event.state.pipe);
-      else { setActivePipeId(null); setView('dashboard'); }
+      if (event.state) {
+        setView(event.state.view || 'dashboard');
+        setActivePipeId(event.state.pipeId || null);
+      } else {
+        setActivePipeId(null);
+        setView('dashboard');
+      }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [activePipeId]);
+  }, []);
 
+  // --- CONFIG ---
   const sensors = [
-    { id: 'pipe_1', label: 'Sensor #1' },
-    { id: 'pipe_2', label: 'Sensor #2' },
-    { id: 'pipe_3', label: 'Sensor #3' },
+    { id: 'pipe_1', label: 'Main Intake Valve' },
+    { id: 'pipe_2', label: 'Processing Unit B' },
+    { id: 'pipe_3', label: 'Outflow Control' },
   ];
+  
   const activeSensorLabel = sensors.find(s => s.id === activePipeId)?.label || 'Unknown Node';
   const globalData = usePipeData('pipe_1'); 
 
-  const goToDashboard = () => { setActivePipeId(null); setView('dashboard'); };
+  const goToDashboard = () => {
+    setActivePipeId(null);
+    setView('dashboard');
+  };
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-[#0B0C10] text-slate-300 font-sans selection:bg-cyan-500/30">
       
-      {/* --- DARK SIDEBAR --- */}
+      {/* Sidebar */}
       <aside className="w-full md:w-64 bg-[#121416] border-b md:border-b-0 md:border-r border-white/5 flex flex-row md:flex-col justify-between md:justify-start z-50 sticky top-0 md:relative">
-        
         <div className="p-4 md:p-8 cursor-pointer flex items-center gap-3" onClick={goToDashboard}>
           <div className="bg-cyan-500/20 p-2 rounded-sm text-cyan-400 border border-cyan-500/30">
             <Waves size={20} />
@@ -64,13 +90,9 @@ const App = () => {
         </nav>
       </aside>
 
-      {/* --- MAIN CONTENT --- */}
+      {/* Main Content */}
       <main className="flex-1 relative overflow-y-auto h-[calc(100vh-80px)] md:h-screen">
-        {/* Subtle Grid Pattern Background */}
-        <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
-
         <div className="relative z-10 max-w-7xl mx-auto p-6 md:p-12">
-          
           {view === 'dashboard' ? (
             !activePipeId ? (
               <div className="space-y-8 animate-in fade-in duration-500">
@@ -80,7 +102,6 @@ const App = () => {
                      <h2 className="text-3xl md:text-4xl font-black text-white tracking-tighter uppercase">Sensor Network</h2>
                    </div>
                 </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                    {sensors.map((sensor) => (
                      <SensorNode 
@@ -96,13 +117,14 @@ const App = () => {
               <SensorDetail 
                 pipeId={activePipeId} 
                 label={activeSensorLabel} 
-                onBack={() => window.history.back()} 
+                onBack={() => {
+                  window.history.back(); // Triggers popstate to update activePipeId
+                }} 
               />
             )
           ) : (
             <Reports history={globalData.history} />
           )}
-
         </div>
       </main>
     </div>
