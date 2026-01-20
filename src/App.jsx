@@ -46,9 +46,9 @@ const App = () => {
 
   // --- CONFIG ---
   const sensors = [
-    { id: 'pipe_1', label: 'Main Intake Valve' },
-    { id: 'pipe_2', label: 'Processing Unit B' },
-    { id: 'pipe_3', label: 'Outflow Control' },
+    { id: 'pipe_1', label: 'Sensor #1' },
+    { id: 'pipe_2', label: 'Sensor #2' },
+    { id: 'pipe_3', label: 'Sensor #3' },
   ];
   
   const activeSensorLabel = sensors.find(s => s.id === activePipeId)?.label || 'Unknown Node';
